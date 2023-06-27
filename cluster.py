@@ -27,6 +27,7 @@ RESULTS_DIR = "results/cluster/"
 
 makedirs(RESULTS_DIR, exist_ok=True)
 
+CHANGES_FIG_SIZE = (40, 20)
 FIG_SIZE = (40, 20)
 FEATURE_SIZE = 48
 
@@ -47,6 +48,9 @@ class DayInfo:
         self._cough_activity_distributions = []
         self._activity_distributions = []
 
+        self._total_cough_count = 0
+        self._cough_activity_events = []
+
         day_cough_count_df = day_df.loc[(day_df['event type'] == 'cough')]
         day_cough_activity_df = day_df.loc[(
             day_df['event type'] == 'cough activity')]
@@ -62,6 +66,9 @@ class DayInfo:
 
         for _, row in day_cough_count_df.iterrows():
             cough_count = row['cough count']
+
+            self._total_cough_count += cough_count
+
             time = row['corrected_start_time']
             time_of_day = time - start_time
 
@@ -70,6 +77,9 @@ class DayInfo:
 
         for _, row in day_cough_activity_df.iterrows():
             cough_activity = row['cough activity']
+
+            self._cough_activity_events.append(cough_activity)
+
             time = row['corrected_start_time']
             time_of_day = time - start_time
 
@@ -352,10 +362,32 @@ def calculate(subject):
         features[i] = dayInfo.features()
 
     print(subject.get_id())
+    # Calculate 14 - day chuncks
+    one_day = datetime.timedelta(1)
+    changes_over_time_start_dates = [subject.get_first_day()]
+    changes_over_time_end_dates = []
+    today = subject.get_first_day()
+    days_in_group = 0
+    days_group_size = 14
+    while today <= subject.get_last_day():
+        # print(today)
+        tomorrow = today + one_day
+        days_in_group += 1
+
+        if days_in_group >= days_group_size:
+            changes_over_time_start_dates.append(tomorrow)
+            changes_over_time_end_dates.append(today)
+            days_in_group = 0
+        today = tomorrow
+
+    changes_over_time_end_dates.append(subject.get_last_day())
+    changes_over_time_chunks = list(
+        zip(changes_over_time_start_dates, changes_over_time_end_dates))
+
     # Calculate 3 - month chuncks
     one_day = datetime.timedelta(1)
-    start_dates = [subject.get_first_day()]
-    end_dates = []
+    months_3_start_dates = [subject.get_first_day()]
+    months_3_end_dates = []
     today = subject.get_first_day()
     months_in_group = 0
     month_group_size = 3
@@ -375,15 +407,15 @@ def calculate(subject):
                 cut_off_day = last_day_of_month
 
             if tomorrow.day >= cut_off_day:
-                start_dates.append(tomorrow)
-                end_dates.append(today)
+                months_3_start_dates.append(tomorrow)
+                months_3_end_dates.append(today)
                 months_in_group = 0
         today = tomorrow
 
-    end_dates.append(subject.get_last_day())
+    months_3_end_dates.append(subject.get_last_day())
 
-    month_3_chunks = list(zip(start_dates, end_dates))
-    n_month_chunks = len(start_dates)
+    month_3_chunks = list(zip(months_3_start_dates, months_3_end_dates))
+    n_month_chunks = len(months_3_start_dates)
 
     month_cough_count_distributions = [[] for _ in range(n_month_chunks)]
 
@@ -491,10 +523,39 @@ def calculate(subject):
             } for start, end in month_3_chunks
         ]
 
+        changes_over_time_chunk_info = [
+            {
+                "start": start,
+                "end": end,
+                "days": 0,
+                "cough_count_per_day": [],
+                "avg_cough_activity_per_day": [],
+                "cluster_breakdown": np.zeros(n_clusters)
+            } for start, end in changes_over_time_chunks
+        ]
+
         for i in range(numOfDays):
             dayInfo = dates[i]
             cluster = clusters[i]
 
+            # Changes over time
+            changes_over_time_info = None
+            for chunk in changes_over_time_chunk_info:
+                start = chunk["start"]
+                end = chunk["end"]
+
+                if dayInfo.date() >= start and dayInfo.date() <= end:
+                    changes_over_time_info = chunk
+                    break
+
+            changes_over_time_info["days"] += 1
+            changes_over_time_info["cluster_breakdown"][cluster] += 1
+            changes_over_time_info["cough_count_per_day"].append(
+                dayInfo._total_cough_count)
+            changes_over_time_info["avg_cough_activity_per_day"].append(
+                np.mean(dayInfo._cough_activity_events))
+
+            # Month info
             month_info = None
             for chunk in month_chunk_info:
                 start = chunk["start"]
@@ -731,8 +792,159 @@ def calculate(subject):
         month_chunks_df.to_csv(
             f'{RESULTS_DIR}{subject.get_id()}_{n_clusters}_3_month_info.csv')
 
+        # Changes over time
+        max_avg_cough_count = 0
+        max_avg_cough_activity = 0
+        max_std_cough_count = 0
+        max_std_cough_activity = 0
+        changes_over_time_stats = []
+        for chunk in changes_over_time_chunk_info:
+            stats = {}
+
+            start = chunk["start"]
+            end = chunk["end"]
+            days = chunk["days"]
+
+            stats["start"] = start
+            stats["end"] = end
+            stats["days"] = days / 14
+
+            if days <= 0:
+                stats["avg_cough_count"] = 0
+                stats["avg_cough_activity"] = 0
+                stats["std_cough_count"] = 0
+                stats["std_cough_activity"] = 0
+                stats["cluster_breakdown"] = chunk["cluster_breakdown"]
+                continue
+
+            stats["cluster_breakdown"] = chunk["cluster_breakdown"] / days
+
+            avg_cough_count = np.mean(chunk["cough_count_per_day"])
+            avg_cough_activity = np.mean(chunk["avg_cough_activity_per_day"])
+
+            std_cough_count = np.std(chunk["cough_count_per_day"])
+            std_cough_activity = np.std(chunk["avg_cough_activity_per_day"])
+
+            if avg_cough_count > max_avg_cough_count:
+                max_avg_cough_count = avg_cough_count
+
+            if avg_cough_activity > max_avg_cough_activity:
+                max_avg_cough_activity = avg_cough_activity
+
+            if std_cough_count > max_std_cough_count:
+                max_std_cough_count = std_cough_count
+
+            if std_cough_activity > max_std_cough_activity:
+                max_std_cough_activity = std_cough_activity
+
+            stats["avg_cough_count"] = avg_cough_count
+            stats["avg_cough_activity"] = avg_cough_activity
+
+            stats["std_cough_count"] = std_cough_count
+            stats["std_cough_activity"] = std_cough_activity
+
+            changes_over_time_stats.append(stats)
+
+        # Normailize stats
+        for stats in changes_over_time_stats:
+            stats["avg_cough_count"] /= max_avg_cough_count
+            stats["avg_cough_activity"] /= max_avg_cough_activity
+
+            stats["std_cough_count"] /= max_std_cough_count
+            stats["std_cough_activity"] /= max_std_cough_activity
+
         # Plot
         print("Plotting...")
+        # Plot changes over time
+        changes_over_time_bar_plot_dates = []
+
+        changes_usage_stats = {
+            'Usage': [],
+        }
+
+        changes_stats = {
+            'Cough Count': [],
+            'Cough Count STD': [],
+            'Cough Activity': [],
+            'Cough Activity STD': [],
+        }
+
+        changes_cluster_stats = {}
+
+        for i in range(n_clusters):
+            changes_cluster_stats[f"C{i+1}"] = []
+
+        for stats in changes_over_time_stats:
+            changes_over_time_bar_plot_dates.append(stats["start"])
+
+            changes_usage_stats["Usage"].append(stats["days"])
+
+            changes_stats["Cough Count"].append(stats["avg_cough_count"])
+            changes_stats["Cough Count STD"].append(stats["std_cough_count"])
+            changes_stats["Cough Activity"].append(stats["avg_cough_activity"])
+            changes_stats["Cough Activity STD"].append(
+                stats["std_cough_activity"])
+
+            for i in range(n_clusters):
+                changes_cluster_stats[f"C{i+1}"].append(
+                    stats["cluster_breakdown"][i])
+
+        # the label locations
+        x = np.arange(len(changes_over_time_bar_plot_dates))
+        width = 0.1  # the width of the bars
+
+        fig, (ax1, ax2, ax3) = plt.subplots(
+            3, 1, figsize=CHANGES_FIG_SIZE, layout='constrained')
+
+        # Usage Stats
+        multiplier = 0
+        for attribute, measurement in changes_usage_stats.items():
+            offset = width * multiplier
+            rects = ax1.bar(x + offset, measurement, width, label=attribute)
+            # ax.bar_label(rects, padding=3)
+            multiplier += 1
+
+        # Stats
+        multiplier = 0
+        for attribute, measurement in changes_stats.items():
+            offset = width * multiplier
+            rects = ax2.bar(x + offset, measurement, width, label=attribute)
+            # ax.bar_label(rects, padding=3)
+            multiplier += 1
+
+        # Clusters
+        multiplier = 0
+        for attribute, measurement in changes_cluster_stats.items():
+            offset = width * multiplier
+            rects = ax3.bar(x + offset, measurement, width, label=attribute)
+            # ax.bar_label(rects, padding=3)
+            multiplier += 1
+
+        # Add some text for labels, title and custom x-axis tick labels, etc.
+        # ax.set_ylabel('Magnitu')
+        ax1.set_title('Usage Over Time')
+        ax1.set_xticks(x + width, changes_over_time_bar_plot_dates)
+        ax1.tick_params(axis='x', labelrotation=45)
+        ax1.legend(loc='upper left', ncols=3)
+        ax1.set_ylim(0, 1.5)
+
+        ax2.set_title('Changes Over Time')
+        ax2.set_xticks(x + width, changes_over_time_bar_plot_dates)
+        ax2.tick_params(axis='x', labelrotation=45)
+        ax2.legend(loc='upper left', ncols=3)
+        ax2.set_ylim(0, 1.5)
+
+        ax3.set_title('Changes Over Time of Clusters')
+        ax3.set_xticks(x + width, changes_over_time_bar_plot_dates)
+        ax3.tick_params(axis='x', labelrotation=45)
+        ax3.legend(loc='upper left', ncols=3)
+        ax3.set_ylim(0, 1.5)
+
+        plt.savefig(
+            f'{RESULTS_DIR}{subject.get_id()}_{n_clusters}_changes_over_time.jpg', bbox_inches="tight")
+        plt.close()
+
+        # Plot clusters
         fig = plt.figure(figsize=FIG_SIZE)
         height_ratios = (1.0 - 1/(n_clusters+1),)
         for i in range(n_clusters):
@@ -756,7 +968,7 @@ def calculate(subject):
             cluster = cluster_map[clusters[i]]
             outlier = outliers[i]
 
-            dayIndex = (dayInfo._date - subject.get_first_day()).days
+            dayIndex = (dayInfo.date() - subject.get_first_day()).days
 
             clusterLineData[0, dayIndex] = cluster + 1
             clusterLineData[1, dayIndex] = outlier * (n_clusters + 1)
