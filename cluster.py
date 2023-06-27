@@ -886,8 +886,9 @@ def calculate(subject):
                 stats["std_cough_activity"])
 
             for i in range(n_clusters):
+                clusterId = cluster_infos[i]["cluster"]
                 changes_cluster_stats[f"C{i+1}"].append(
-                    stats["cluster_breakdown"][i])
+                    stats["cluster_breakdown"][clusterId])
 
         # the label locations
         x = np.arange(len(changes_over_time_bar_plot_dates))
