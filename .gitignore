@@ -7,7 +7,7 @@ results/
 venv/
 
 # Paper Latex
-paper/*.pdf
+paper/
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
