@@ -2,6 +2,7 @@ import datetime
 import pytz
 
 import pandas as pd
+from tqdm import tqdm
 
 import device_info
 
@@ -113,3 +114,23 @@ class Subject:
 
     def get_data(self):
         return pd.DataFrame.from_dict(self._data)
+
+
+def load_from_csv(path_to_csv):
+    df = pd.read_csv(path_to_csv)
+
+    subjects = {}
+    for _, row in tqdm(df.iterrows(), total=df.shape[0]):
+        subject_id = row['subject_id']
+        event_id = row['id']
+
+        start_time = row['corrected_start_time']
+        event_type = row['event type']
+
+        if subject_id not in subjects:
+            subjects[subject_id] = Subject(subject_id)
+
+        subjects[subject_id].add_activity(
+            start_time, event_id, event_type, row)
+
+    return subjects

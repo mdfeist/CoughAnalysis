@@ -464,7 +464,11 @@ def calculate(subject):
     # Clusters
     for n_clusters in range(2, 6):
         kmeans = KMeans(init="k-means++", n_clusters=n_clusters, n_init=10)
-        kmeans.fit(features)
+        try:
+            kmeans.fit(features)
+        except:
+            continue
+
         clusters = kmeans.fit_predict(features)
         clusterError = getClusterError(
             dates, clusters, kmeans.cluster_centers_)
@@ -508,6 +512,9 @@ def calculate(subject):
 
         cough_activity_per_hour = [[[]
                                     for _ in range(24)] for _ in range(n_clusters)]
+
+        valid_events_per_hour = [[[]
+                                  for _ in range(24)] for _ in range(n_clusters)]
 
         cough_count_distributions_cmb = [[] for _ in range(n_clusters)]
 
@@ -572,6 +579,8 @@ def calculate(subject):
                     hour])
                 cough_activity_per_hour[cluster][hour].append(dayInfo.coughActivity()[
                     hour])
+                valid_events_per_hour[cluster][hour].append(
+                    dayInfo.validEvents()[hour])
 
                 month_info["cough_count_per_hour"][cluster][hour].append(dayInfo.coughCount()[
                     hour])
@@ -1034,11 +1043,11 @@ def calculate(subject):
                                  sharey=lastCoughActivityAx)
 
             ax.boxplot(
-                cough_activity_per_hour[clusterId], labels=labels, showfliers=False)
-            ax.set_ylabel('Cough Activity')
+                valid_events_per_hour[clusterId], labels=labels, showfliers=False)
+            ax.set_ylabel('Valid Events')
             ax.tick_params(axis='x', labelrotation=45)
             ax.set_title(
-                f'Cluster {cluster+1} - Time of Day Cough Activity')
+                f'Cluster {cluster+1} - Time of Day Valid Events')
             ax.yaxis.grid(True)
 
             # Save cluster size
