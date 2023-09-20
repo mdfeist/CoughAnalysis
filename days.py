@@ -234,9 +234,7 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
 
         # Cough count
         day_cough_count = dayInfo.coughCount()
-        day_cough_count_avg = 0
-        day_cough_count_max = 0
-        day_cough_count_min = 1000
+        day_cough_count_list = []
 
         for hour in range(24):
             if usage[hour] and dates_per_hour["total_usage_per_hour"][hour] >= min_hours:
@@ -248,23 +246,16 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
                     hour_cough_count = hour_cough_count / \
                         dates_per_hour["avg_cough_count_per_hour"][hour]
 
-                day_cough_count_avg += hour_cough_count
-                day_cough_count_max = max(
-                    day_cough_count_max, hour_cough_count)
-                day_cough_count_min = min(
-                    day_cough_count_min, hour_cough_count)
+                day_cough_count_list.append(hour_cough_count)
 
-        day_cough_count_avg /= usage.sum()
-
-        cough_count_avg_per_day[i] = day_cough_count_avg
-        cough_count_max_per_day[i] = day_cough_count_max
-        cough_count_min_per_day[i] = day_cough_count_min
+        if len(day_cough_count_list):
+            cough_count_avg_per_day[i] = np.median(day_cough_count_list)
+            cough_count_max_per_day[i] = np.max(day_cough_count_list)
+            cough_count_min_per_day[i] = np.min(day_cough_count_list)
 
         # Cough actitivty
         day_cough_activity = dayInfo.coughActivity()
-        day_cough_activity_avg = 0
-        day_cough_activity_max = 0
-        day_cough_activity_min = 1000
+        day_cough_activity_list = []
 
         for hour in range(24):
             if usage[hour] and dates_per_hour["total_usage_per_hour"][hour] >= min_hours:
@@ -276,23 +267,16 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
                     hour_cough_activity = hour_cough_activity / \
                         dates_per_hour["avg_cough_activity_per_hour"][hour]
 
-                day_cough_activity_avg += hour_cough_activity
-                day_cough_activity_max = max(
-                    day_cough_activity_max, hour_cough_activity)
-                day_cough_activity_min = min(
-                    day_cough_activity_min, hour_cough_activity)
+                day_cough_activity_list.append(hour_cough_activity)
 
-        day_cough_activity_avg /= usage.sum()
-
-        cough_activity_avg_per_day[i] = day_cough_activity_avg
-        cough_activity_max_per_day[i] = day_cough_activity_max
-        cough_activity_min_per_day[i] = day_cough_activity_min
+        if len(day_cough_activity_list):
+            cough_activity_avg_per_day[i] = np.median(day_cough_activity_list)
+            cough_activity_max_per_day[i] = np.max(day_cough_activity_list)
+            cough_activity_min_per_day[i] = np.min(day_cough_activity_list)
 
         # Actitivty
         day_activity = dayInfo.activity()
-        day_activity_avg = 0
-        day_activity_max = 0
-        day_activity_min = 1000
+        day_activity_list = []
 
         for hour in range(24):
             if usage[hour] and dates_per_hour["total_usage_per_hour"][hour] >= min_hours:
@@ -304,17 +288,12 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
                     hour_activity = hour_activity / \
                         dates_per_hour["avg_activity_per_hour"][hour]
 
-                day_activity_avg += hour_activity
-                day_activity_max = max(
-                    day_activity_max, hour_activity)
-                day_activity_min = min(
-                    day_activity_min, hour_activity)
+                day_activity_list.append(hour_activity)
 
-        day_activity_avg /= usage.sum()
-
-        activity_avg_per_day[i] = day_activity_avg
-        activity_max_per_day[i] = day_activity_max
-        activity_min_per_day[i] = day_activity_min
+        if len(day_activity_list):
+            activity_avg_per_day[i] = np.median(day_activity_list)
+            activity_max_per_day[i] = np.max(day_activity_list)
+            activity_min_per_day[i] = np.min(day_activity_list)
 
     results = {
         "dates": date_labels,
