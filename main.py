@@ -12,7 +12,7 @@ import graph
 
 DATA_DIR = "data_oct_2022/"
 CSV_PATH = DATA_DIR + "cleaned.csv"
-RESULTS_DIR = "results/outliers/"
+RESULTS_DIR = "results/main/"
 
 makedirs(RESULTS_DIR, exist_ok=True)
 
@@ -33,8 +33,15 @@ def main():
         # Returns a list of DayInfo objects
         dates = days.create_days(subject)
 
-        # Calculate per hour info
-        # Returns a dictionary object with averages, totals, and distributions for each hour
+        # Get summary of each day in a table
+        # Includes date, start time, hours used,
+        # total cough count, average cough activity, and
+        # average activity for each day in dates
+        df = days.dates_to_table(dates)
+        print(df)
+
+        # Returns a dictionary object with averages,
+        # totals, and distributions for each hour
         dates_per_hour = days.calculate_per_hour(dates)
 
         # Graph dates
@@ -47,6 +54,27 @@ def main():
         graph.estimate_box_plot_day_info(
             dates_per_hour,
             f'{RESULTS_DIR}{subject.get_id()}_dates_estimated_box.jpg',
+            title=subject.get_id()
+        )
+
+        # Each hour is first is normalized by the average for that hour.
+        # This gives us a percentage for each hour in each day that the
+        # hour differs from the norm.
+        #
+        # Then the average, minimum, and maximum for each day is returned.
+        #
+        # This method attempts to find changes while ignoring changes in
+        # usage.
+        #
+        # For example:
+        #
+        # If the maximum cough count for a day is 2. Then there were twice
+        # as many coughs than normal during one of the hours in the day.
+        dates_changes = days.calculate_per_day_summary(dates, dates_per_hour)
+
+        graph.changes_over_time_day_info(
+            dates_changes,
+            f'{RESULTS_DIR}{subject.get_id()}_dates_changes.jpg',
             title=subject.get_id()
         )
 

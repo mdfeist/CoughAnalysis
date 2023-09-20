@@ -4,7 +4,7 @@ import pandas as pd
 import time_utils
 
 FEATURE_SIZE = 24 * 2
-USAGE_THRESHOLD = 4
+USAGE_THRESHOLD = 6
 
 
 class DayInfo:
@@ -128,3 +128,12 @@ class DayInfo:
             return usage
 
         return self._estimated_usage
+
+    def start_time(self):
+        found_start_time = -1
+        for hour in range(24):
+            if self._estimated_usage[hour]:
+                found_start_time = hour
+                break
+
+        return found_start_time
