@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from subject import load_from_csv
 import days
-
+import date_utils
 import graph
 
 
@@ -85,6 +85,26 @@ def main():
 
         print(f'Estimated Usage Mean: {np.mean(estimated_usage)}')
         print(f'Estimated Usage STD: {np.std(estimated_usage)}')
+
+        # Split dates into 30 day chunks
+        time_chunks = date_utils.chunk_dates(dates,
+                                             subject.get_first_day(),
+                                             subject.get_last_day(),
+                                             30)
+
+        for chunk in time_chunks:
+            print(f'{chunk["start"]} - {chunk["end"]} - {len(chunk["dates"])}')
+
+        changes_between_chunks = days.calculate_changes_between_chunks(
+            time_chunks,
+            dates_per_hour
+        )
+
+        graph.changes_between_chunks(
+            changes_between_chunks,
+            f'{RESULTS_DIR}{subject.get_id()}_dates_chunk_changes.jpg',
+            title=subject.get_id()
+        )
 
 
 if __name__ == "__main__":

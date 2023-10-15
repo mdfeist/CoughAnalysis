@@ -92,10 +92,6 @@ def create_days(subject):
     max_cough_activity = utils.calculateMax(cough_activity_list)
     max_activity = utils.calculateMax(activity_list)
 
-    for dayInfo in dates:
-        dayInfo.calculateFeatures(
-            max_valid_events, max_cough_count, max_cough_activity, max_activity)
-
     return dates
 
 
@@ -308,5 +304,117 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
         "activity_max_per_day": activity_max_per_day,
         "activity_min_per_day": activity_min_per_day
     }
+
+    return results
+
+
+def calculate_changes_feature_array(dates, dates_per_hour=None, min_hours=5):
+    if dates_per_hour is None:
+        dates_per_hour = calculate_per_hour(dates)
+
+    num_days = len(dates)
+
+    cough_count_per_day = np.ones((num_days, 24))
+    cough_activity_per_day = np.ones((num_days, 24))
+    activity_per_day = np.ones((num_days, 24))
+
+    for i in range(num_days):
+        dayInfo = dates[i]
+        usage = dayInfo.estimated_usage()
+
+        # Cough count
+        day_cough_count = dayInfo.coughCount()
+
+        for hour in range(24):
+            if usage[hour] and dates_per_hour["total_usage_per_hour"][hour] >= min_hours:
+                # Normalize hour
+                if dates_per_hour["avg_cough_count_per_hour"][hour] > 0:
+                    hour_cough_count = day_cough_count[hour] / \
+                        dates_per_hour["avg_cough_count_per_hour"][hour]
+                    cough_count_per_day[i, hour] = hour_cough_count
+
+        # Cough actitivty
+        day_cough_activity = dayInfo.coughActivity()
+
+        for hour in range(24):
+            if usage[hour] and dates_per_hour["total_usage_per_hour"][hour] >= min_hours:
+                # Normalize hour
+                if dates_per_hour["avg_cough_activity_per_hour"][hour] > 0:
+                    hour_cough_activity = day_cough_activity[hour] / \
+                        dates_per_hour["avg_cough_activity_per_hour"][hour]
+                    cough_activity_per_day[i, hour] = hour_cough_activity
+
+        # Actitivty
+        day_activity = dayInfo.activity()
+
+        for hour in range(24):
+            if usage[hour] and dates_per_hour["total_usage_per_hour"][hour] >= min_hours:
+                # Normalize hour
+                if dates_per_hour["avg_activity_per_hour"][hour] > 0:
+                    hour_activity = day_activity[hour] / \
+                        dates_per_hour["avg_activity_per_hour"][hour]
+                    activity_per_day[i, hour] = hour_activity
+
+    return cough_count_per_day, cough_activity_per_day, activity_per_day
+
+
+def calculate_changes_between_chunks(date_chunks, dates_per_hour):
+    results = []
+
+    for chunk in date_chunks:
+        chunk_dates_per_hour = calculate_per_hour(chunk["dates"])
+
+        avg_change_cough_count_per_hour = np.zeros((24,))
+        avg_change_cough_activity_per_hour = np.zeros((24,))
+        avg_change_activity_per_hour = np.zeros((24,))
+
+        missing_hours = []
+        for hour in range(24):
+            # Missing?
+            hour_has_usage = dates_per_hour["total_usage_per_hour"][hour] >= 1
+
+            if hour_has_usage:
+                hour_chunk_has_usage = chunk_dates_per_hour["total_usage_per_hour"][hour] >= 1
+
+                if not hour_chunk_has_usage:
+                    missing_hours.append(hour)
+
+                # Cough Count
+                hour_cough_count_avg = dates_per_hour["avg_cough_count_per_hour"][hour]
+                hour_chunk_cough_count_avg = chunk_dates_per_hour["avg_cough_count_per_hour"][hour]
+
+                if hour_cough_count_avg > 0:
+                    hour_avg_change_cough_count = hour_chunk_cough_count_avg / hour_cough_count_avg
+                    avg_change_cough_count_per_hour[hour] = hour_avg_change_cough_count
+
+                # Cough Activity
+                hour_cough_activity_avg = dates_per_hour["avg_cough_activity_per_hour"][hour]
+                hour_chunk_cough_activity_avg = chunk_dates_per_hour[
+                    "avg_cough_activity_per_hour"][hour]
+
+                if hour_cough_activity_avg > 0:
+                    hour_avg_change_cough_activity = hour_chunk_cough_activity_avg / hour_cough_activity_avg
+                    avg_change_cough_activity_per_hour[hour] = hour_avg_change_cough_activity
+
+                # Activity
+                hour_activity_avg = dates_per_hour["avg_activity_per_hour"][hour]
+                hour_chunk_activity_avg = chunk_dates_per_hour[
+                    "avg_activity_per_hour"][hour]
+
+                if hour_activity_avg > 0:
+                    hour_avg_change_activity = hour_chunk_activity_avg / hour_activity_avg
+                    avg_change_activity_per_hour[hour] = hour_avg_change_activity
+
+        new_chunk = {
+            "start": chunk["start"],
+            "end": chunk["end"],
+            "dates": chunk["dates"],
+            "missing_hours": missing_hours,
+            "avg_change_cough_count_per_hour": avg_change_cough_count_per_hour,
+            "avg_change_cough_activity_per_hour": avg_change_cough_activity_per_hour,
+            "avg_change_activity_per_hour": avg_change_activity_per_hour
+        }
+
+        results.append(new_chunk)
 
     return results

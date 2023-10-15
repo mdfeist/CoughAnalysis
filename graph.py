@@ -1,4 +1,6 @@
+import numpy as np
 import matplotlib.pyplot as plt
+import heatmap
 
 
 def graph_day_info(dates_info, file_name, title='Subject'):
@@ -137,6 +139,68 @@ def changes_over_time_day_info(dates_changes, file_name, title='Subject'):
         f'{title} - Activity')
     ax3.legend()
     ax3.yaxis.grid(True)
+
+    plt.savefig(file_name)
+    plt.close()
+
+
+def changes_between_chunks(changes_between_chunks, file_name, title='Subject'):
+    FIG_SIZE = (20, 20)
+    fig, (ax1, ax2, ax3) = plt.subplots(
+        3, 1, figsize=FIG_SIZE, sharex=True, sharey=False)
+
+    num_chunks = len(changes_between_chunks)
+
+    cough_count_data = np.zeros((num_chunks, 24))
+    cough_activity_data = np.zeros((num_chunks, 24))
+    activity_data = np.zeros((num_chunks, 24))
+
+    row_labels = []
+    col_labels = list(range(0, 24))
+
+    for i, chunk in enumerate(changes_between_chunks):
+        chunk_cough_count = chunk["avg_change_cough_count_per_hour"]
+        chunk_activity_count = chunk["avg_change_cough_activity_per_hour"]
+        chunk_activity = chunk["avg_change_activity_per_hour"]
+        row_labels.append(chunk["start"])
+
+        for j in range(24):
+            if ~np.isnan(chunk_cough_count[j]):
+                cough_count_data[i, j] = chunk_cough_count[j]
+
+            if ~np.isnan(chunk_activity_count[j]):
+                cough_activity_data[i, j] = chunk_activity_count[j]
+
+            if ~np.isnan(chunk_activity[j]):
+                activity_data[i, j] = chunk_activity[j]
+
+    im, _ = heatmap.heatmap(cough_count_data, row_labels,
+                            col_labels, ax1, vmin=0.0, vmax=2.0)
+    heatmap.annotate_heatmap(im, cough_count_data,
+                             textcolors=("white", "black"))
+    ax1.autoscale(False)
+    ax1.set_xlabel('Hours')
+    # ax1.set_ylabel('Dates')
+    ax1.set_title(
+        f'{title} - Cough Count')
+
+    im, _ = heatmap.heatmap(cough_activity_data, row_labels,
+                            col_labels, ax2, vmin=0.0, vmax=2.0)
+    heatmap.annotate_heatmap(im, cough_activity_data,
+                             textcolors=("white", "black"))
+    ax2.autoscale(False)
+    ax2.set_xlabel('Hours')
+    ax2.set_title(
+        f'{title} - Cough Activity')
+
+    im, _ = heatmap.heatmap(activity_data, row_labels,
+                            col_labels, ax3, vmin=0.0, vmax=2.0)
+    heatmap.annotate_heatmap(im, activity_data,
+                             textcolors=("white", "black"))
+    ax3.autoscale(False)
+    ax3.set_xlabel('Hours')
+    ax3.set_title(
+        f'{title} - Activity')
 
     plt.savefig(file_name)
     plt.close()

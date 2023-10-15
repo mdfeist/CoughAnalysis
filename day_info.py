@@ -17,8 +17,6 @@ class DayInfo:
         self._activity = np.zeros(24)
         self._estimated_usage = np.zeros(24)
 
-        self._features = None
-
         self._valid_events_distributions = []
         self._cough_count_distributions = []
         self._cough_activity_distributions = []
@@ -70,21 +68,6 @@ class DayInfo:
             for _ in range(int(activity)):
                 self._activity_distributions.append(time_of_day)
 
-    def calculateFeatures(self, max_valid_events, max_cough_count, max_cough_activity, max_activity):
-        ve = self._valid_events / max_valid_events
-        ve = np.clip(ve, 0, 1)
-
-        cc = self._cough_count / max_cough_count
-        cc = np.clip(cc, 0, 1)
-
-        ca = self._cough_activity / max_cough_activity
-        ca = np.clip(ca, 0, 1)
-
-        a = self._activity / max_activity
-        a = np.clip(a, 0, 1)
-
-        self._features = np.concatenate([cc, ca])
-
     def setHour(self, hour, valid_events, cough_count, cough_activity, activity):
         self._valid_events[hour] = valid_events
         self._cough_count[hour] = cough_count
@@ -93,9 +76,6 @@ class DayInfo:
 
         if (valid_events + cough_count) >= USAGE_THRESHOLD:
             self._estimated_usage[hour] = 1
-
-    def features(self):
-        return self._features
 
     def date(self):
         return self._date

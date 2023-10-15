@@ -3,6 +3,9 @@ class ClusterInfo:
         self._id = id
         self._dates = []
 
+    def dates(self):
+        return self._dates
+
     def add_date(self, date):
         self._dates.append(date)
 
