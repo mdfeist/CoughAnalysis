@@ -367,42 +367,63 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
         avg_change_cough_count_per_hour = np.zeros((24,))
         avg_change_cough_activity_per_hour = np.zeros((24,))
         avg_change_activity_per_hour = np.zeros((24,))
+        usage_mask = np.ones((24,))
+
+        cough_count_avg = 0.0
+        cough_activity_avg = 0.0
+        activity_avg = 0.0
+        avg_usage_count = 0
+
+        for hour in range(24):
+            hour_usage = dates_per_hour["total_usage_per_hour"][hour]
+            if hour_usage >= 2:
+                avg_usage_count += 1
+                cough_count_avg += dates_per_hour["avg_cough_count_per_hour"][hour]
+                cough_activity_avg += dates_per_hour["avg_cough_activity_per_hour"][hour]
+                activity_avg += dates_per_hour["avg_activity_per_hour"][hour]
+
+            chunk_hour_usage = chunk_dates_per_hour["total_usage_per_hour"][hour]
+            if chunk_hour_usage >= 2:
+                usage_mask[hour] = 0.0
+
+        if avg_usage_count > 0:
+            cough_count_avg = cough_count_avg / avg_usage_count
+            cough_activity_avg = cough_activity_avg / avg_usage_count
+            activity_avg = activity_avg / avg_usage_count
 
         missing_hours = []
         for hour in range(24):
             # Missing?
-            hour_has_usage = dates_per_hour["total_usage_per_hour"][hour] >= 1
+            hour_has_usage = dates_per_hour["total_usage_per_hour"][hour] >= 2
 
             if hour_has_usage:
-                hour_chunk_has_usage = chunk_dates_per_hour["total_usage_per_hour"][hour] >= 1
+                hour_chunk_has_usage = chunk_dates_per_hour["total_usage_per_hour"][hour] >= 2
 
                 if not hour_chunk_has_usage:
                     missing_hours.append(hour)
+                    continue
 
                 # Cough Count
-                hour_cough_count_avg = dates_per_hour["avg_cough_count_per_hour"][hour]
                 hour_chunk_cough_count_avg = chunk_dates_per_hour["avg_cough_count_per_hour"][hour]
 
-                if hour_cough_count_avg > 0:
-                    hour_avg_change_cough_count = hour_chunk_cough_count_avg / hour_cough_count_avg
+                if cough_count_avg >= 1:
+                    hour_avg_change_cough_count = hour_chunk_cough_count_avg / cough_count_avg
                     avg_change_cough_count_per_hour[hour] = hour_avg_change_cough_count
 
                 # Cough Activity
-                hour_cough_activity_avg = dates_per_hour["avg_cough_activity_per_hour"][hour]
                 hour_chunk_cough_activity_avg = chunk_dates_per_hour[
                     "avg_cough_activity_per_hour"][hour]
 
-                if hour_cough_activity_avg > 0:
-                    hour_avg_change_cough_activity = hour_chunk_cough_activity_avg / hour_cough_activity_avg
+                if cough_activity_avg >= 1:
+                    hour_avg_change_cough_activity = hour_chunk_cough_activity_avg / cough_activity_avg
                     avg_change_cough_activity_per_hour[hour] = hour_avg_change_cough_activity
 
                 # Activity
-                hour_activity_avg = dates_per_hour["avg_activity_per_hour"][hour]
                 hour_chunk_activity_avg = chunk_dates_per_hour[
                     "avg_activity_per_hour"][hour]
 
-                if hour_activity_avg > 0:
-                    hour_avg_change_activity = hour_chunk_activity_avg / hour_activity_avg
+                if activity_avg >= 1:
+                    hour_avg_change_activity = hour_chunk_activity_avg / activity_avg
                     avg_change_activity_per_hour[hour] = hour_avg_change_activity
 
         new_chunk = {
@@ -412,7 +433,8 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
             "missing_hours": missing_hours,
             "avg_change_cough_count_per_hour": avg_change_cough_count_per_hour,
             "avg_change_cough_activity_per_hour": avg_change_cough_activity_per_hour,
-            "avg_change_activity_per_hour": avg_change_activity_per_hour
+            "avg_change_activity_per_hour": avg_change_activity_per_hour,
+            "usage_mask": usage_mask
         }
 
         results.append(new_chunk)

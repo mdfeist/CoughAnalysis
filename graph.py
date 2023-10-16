@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import heatmap
+import pandas as pd
+import seaborn as sns
 
 
 def graph_day_info(dates_info, file_name, title='Subject'):
@@ -154,6 +156,7 @@ def changes_between_chunks(changes_between_chunks, file_name, title='Subject'):
     cough_count_data = np.zeros((num_chunks, 24))
     cough_activity_data = np.zeros((num_chunks, 24))
     activity_data = np.zeros((num_chunks, 24))
+    usage_mask = np.zeros((num_chunks, 24))
 
     row_labels = []
     col_labels = list(range(0, 24))
@@ -162,6 +165,7 @@ def changes_between_chunks(changes_between_chunks, file_name, title='Subject'):
         chunk_cough_count = chunk["avg_change_cough_count_per_hour"]
         chunk_activity_count = chunk["avg_change_cough_activity_per_hour"]
         chunk_activity = chunk["avg_change_activity_per_hour"]
+        chunk_usage_mask = chunk["usage_mask"]
         row_labels.append(chunk["start"])
 
         for j in range(24):
@@ -174,33 +178,51 @@ def changes_between_chunks(changes_between_chunks, file_name, title='Subject'):
             if ~np.isnan(chunk_activity[j]):
                 activity_data[i, j] = chunk_activity[j]
 
-    im, _ = heatmap.heatmap(cough_count_data, row_labels,
-                            col_labels, ax1, vmin=0.0, vmax=2.0)
-    heatmap.annotate_heatmap(im, cough_count_data,
-                             textcolors=("white", "black"))
-    ax1.autoscale(False)
+            if ~np.isnan(chunk_usage_mask[j]):
+                usage_mask[i, j] = chunk_usage_mask[j]
+
+    cough_count_df = pd.DataFrame(
+        cough_count_data,
+        columns=col_labels,
+        index=row_labels)
+    sns.heatmap(cough_count_df, annot=True,
+                linewidth=.5, ax=ax1, vmin=0, vmax=2,
+                cmap="mako", mask=usage_mask)
     ax1.set_xlabel('Hours')
-    # ax1.set_ylabel('Dates')
     ax1.set_title(
         f'{title} - Cough Count')
 
-    im, _ = heatmap.heatmap(cough_activity_data, row_labels,
-                            col_labels, ax2, vmin=0.0, vmax=2.0)
-    heatmap.annotate_heatmap(im, cough_activity_data,
-                             textcolors=("white", "black"))
-    ax2.autoscale(False)
+    cough_activity_df = pd.DataFrame(
+        cough_activity_data,
+        columns=col_labels,
+        index=row_labels)
+    sns.heatmap(cough_activity_df, annot=True,
+                linewidth=.5, ax=ax2, vmin=0, vmax=2,
+                cmap="mako", mask=usage_mask)
     ax2.set_xlabel('Hours')
     ax2.set_title(
         f'{title} - Cough Activity')
 
-    im, _ = heatmap.heatmap(activity_data, row_labels,
-                            col_labels, ax3, vmin=0.0, vmax=2.0)
-    heatmap.annotate_heatmap(im, activity_data,
-                             textcolors=("white", "black"))
-    ax3.autoscale(False)
+    activity_df = pd.DataFrame(
+        activity_data,
+        columns=col_labels,
+        index=row_labels)
+    sns.heatmap(activity_df, annot=True,
+                linewidth=.5, ax=ax3, vmin=0, vmax=2,
+                cmap="mako", mask=usage_mask)
     ax3.set_xlabel('Hours')
     ax3.set_title(
         f'{title} - Activity')
+
+    for a in fig.axes:
+        a.tick_params(
+            axis='x',           # changes apply to the x-axis
+            which='both',       # both major and minor ticks are affected
+            bottom=True,
+            top=False,
+            labelbottom=True)    # labels along the bottom edge are on
+
+    fig.tight_layout(pad=5.0)
 
     plt.savefig(file_name)
     plt.close()
