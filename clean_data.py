@@ -106,13 +106,15 @@ def correct_times(device_id, device):
             # Is the chuck greater than a month and possibly has the date set incorrectly
             if (chunks[invalid].et + MONTH) < chunks[first_valid].st:
                 # Calculate time shift
-                diff = chunks[first_valid].st - chunks[invalid].et
-                diff -= DAY
+                diff = np.floor(
+                    (chunks[first_valid].st - chunks[invalid].et) / DAY)
+                diff = DAY*diff
 
                 # Shift chunk
                 chunks[invalid].st += diff
                 chunks[invalid].et += diff
-                chunks[invalid].times += diff
+                for j in range(len(chunks[invalid].times)):
+                    chunks[invalid].times[j] += diff
 
                 chunks_updated = True
 
@@ -130,14 +132,19 @@ def correct_times(device_id, device):
             # Is date set incorrectly
             if (chunks[first_invalid].st + DAY) < chunks[first_valid].et:
                 # Calculate time shift
-                diff = chunks[first_valid].et - chunks[first_invalid].st
-                if diff > DAY:
-                    diff += DAY
+                diff = np.ceil(
+                    (chunks[first_valid].et - chunks[first_invalid].st) / DAY)
+                if diff > 1:
+                    diff = DAY*(diff + 1)
+
+                    print(
+                        f"{(chunks[first_valid].et/DAY)} to {((chunks[first_invalid].st + diff)/DAY)}")
 
                     # Shift chunk
                     chunks[first_invalid].st += diff
                     chunks[first_invalid].et += diff
-                    chunks[first_invalid].times += diff
+                    for j in range(len(chunks[first_invalid].times)):
+                        chunks[first_invalid].times[j] += diff
                     chunks[first_invalid].valid = True
 
                     chunks_updated = True
@@ -156,14 +163,19 @@ def correct_times(device_id, device):
 
             if (chunks[invalid].st + DAY) < chunks[last_valid].et:
                 # Calculate time shift
-                diff = chunks[last_valid].et - chunks[invalid].st
-                if diff > DAY:
-                    diff += DAY
+                diff = np.ceil(
+                    (chunks[last_valid].et - chunks[invalid].st) / DAY)
+                if diff > 1:
+                    diff = DAY*(diff + 1)
+
+                    print(
+                        f"{(chunks[last_valid].et/DAY)} to {((chunks[invalid].st + diff)/DAY)}")
 
                     # Shift chunk
                     chunks[invalid].st += diff
                     chunks[invalid].et += diff
-                    chunks[invalid].times += diff
+                    for j in range(len(chunks[invalid].times)):
+                        chunks[invalid].times[j] += diff
 
                     chunks_updated = True
 
@@ -224,8 +236,8 @@ def shift_times(device):
 
         if (t1 + DAY) < t0:
             print("SHIFT")
-            diff = t0 - t1 + DAY
-            device['times'][i+1:] += diff
+            diff = np.floor((t0 - t1)/DAY)
+            device['times'][i+1:] += DAY*(diff + 1)
 
 
 def check_original_times(device):
@@ -237,10 +249,10 @@ def check_original_times(device):
 
         diff = tc - to
         if abs(diff) < WEEK:
-            device['times'][i:] -= diff
+            device['times'][i:] -= DAY*np.floor(diff/DAY)
 
         if abs(tt - tc) > abs(tt - to) or tc > et:
-            device['times'][i:] -= diff
+            device['times'][i:] -= DAY*np.floor(diff/DAY)
 
 
 def main():
@@ -265,7 +277,11 @@ def main():
         event_id = row['id']
 
         devices[device_id]['events'].append(event_id)
-        devices[device_id]['times'].append(start_time)
+
+        if device_id == 'A020219902410000231':
+            devices[device_id]['times'].append(start_time - 11*HOUR)
+        else:
+            devices[device_id]['times'].append(start_time)
 
     # Check valid times
     for device_id, device in sorted(devices.items()):
@@ -288,7 +304,7 @@ def main():
         correct_times(device_id, device)
         remove_invalid_times(device)
         shift_times(device)
-        check_original_times(device)
+        # check_original_times(device)
 
     # Save clean csv
     dataframes = []

@@ -5,12 +5,13 @@ import numpy as np
 from tqdm import tqdm
 
 from subject import load_from_csv
+import cluster
 import days
 import date_utils
 import graph
 
 
-DATA_DIR = "data_oct_2022/"
+DATA_DIR = "results/clean/"
 CSV_PATH = DATA_DIR + "cleaned.csv"
 RESULTS_DIR = "results/main/"
 
@@ -86,11 +87,25 @@ def main():
         print(f'Estimated Usage Mean: {np.mean(estimated_usage)}')
         print(f'Estimated Usage STD: {np.std(estimated_usage)}')
 
-        # Split dates into 30 day chunks
+        # Usage clusters
+        features = np.zeros((len(dates), 24))
+
+        for i, date in enumerate(dates):
+            features[i] = date.estimated_usage()
+
+        try:
+            clusters = cluster.create_clusters(dates, features, 3)
+
+            graph.plot_clusters(
+                clusters, subject, f'{RESULTS_DIR}{subject.get_id()}_usage_clusters.jpg')
+        except Exception as e:
+            print(e)
+
+        # Split dates into 14 day chunks
         time_chunks = date_utils.chunk_dates(dates,
                                              subject.get_first_day(),
                                              subject.get_last_day(),
-                                             30)
+                                             14)
 
         for chunk in time_chunks:
             print(f'{chunk["start"]} - {chunk["end"]} - {len(chunk["dates"])}')

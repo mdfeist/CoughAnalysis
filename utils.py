@@ -69,3 +69,21 @@ def calculateDistributionInfo(x):
     upper = Q3 + 1.5*IQR
 
     return median, lower, upper
+
+
+def mean_remove_outliers(x):
+    if type(x) == list:
+        size = len(x)
+    else:
+        size = x.shape[0]
+
+    if size < 10:
+        return np.mean(x)
+
+    x = np.sort(x)
+
+    s = size//4
+    e = 3*size//4
+    mean = np.mean(x[s:e])
+
+    return mean
