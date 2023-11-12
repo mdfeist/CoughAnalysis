@@ -361,6 +361,23 @@ def calculate_changes_feature_array(dates, dates_per_hour=None, min_hours=5):
 def calculate_changes_between_chunks(date_chunks, dates_per_hour):
     results = []
 
+    cough_count = []
+    cough_activity = []
+    activity = []
+
+    for hour in range(24):
+        hour_usage = dates_per_hour["total_usage_per_hour"][hour]
+        if hour_usage >= 2:
+            cough_count.extend(
+                dates_per_hour["cough_count_per_hour"][hour])
+            cough_activity.extend(
+                dates_per_hour["cough_activity_per_hour"][hour])
+            activity.extend(dates_per_hour["activity_per_hour"][hour])
+
+    cough_count_avg = utils.mean_remove_outliers(cough_count)
+    cough_activity_avg = utils.mean_remove_outliers(cough_activity)
+    activity_avg = utils.mean_remove_outliers(activity)
+
     for chunk in date_chunks:
         chunk_dates_per_hour = calculate_per_hour(chunk["dates"])
 
@@ -369,29 +386,16 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
         avg_change_activity_per_hour = np.zeros((24,))
         usage_mask = np.ones((24,))
 
-        cough_count = []
-        cough_activity = []
-        activity = []
+        chunk_cough_count = []
+        chunk_cough_activity = []
+        chunk_activity = []
 
+        missing_hours = []
         for hour in range(24):
-            hour_usage = dates_per_hour["total_usage_per_hour"][hour]
-            if hour_usage >= 2:
-                cough_count.extend(
-                    dates_per_hour["cough_count_per_hour"][hour])
-                cough_activity.extend(
-                    dates_per_hour["cough_activity_per_hour"][hour])
-                activity.extend(dates_per_hour["activity_per_hour"][hour])
-
             chunk_hour_usage = chunk_dates_per_hour["total_usage_per_hour"][hour]
             if chunk_hour_usage >= 2:
                 usage_mask[hour] = 0.0
 
-        cough_count_avg = np.median(cough_count)
-        cough_activity_avg = np.median(cough_activity)
-        activity_avg = utils.mean_remove_outliers(activity)
-
-        missing_hours = []
-        for hour in range(24):
             # Missing?
             hour_has_usage = dates_per_hour["total_usage_per_hour"][hour] >= 2
 
@@ -402,8 +406,15 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
                     missing_hours.append(hour)
                     continue
 
+                chunk_cough_count.extend(
+                    chunk_dates_per_hour["cough_count_per_hour"][hour])
+                chunk_cough_activity.extend(
+                    chunk_dates_per_hour["cough_activity_per_hour"][hour])
+                chunk_activity.extend(
+                    chunk_dates_per_hour["activity_per_hour"][hour])
+
                 # Cough Count
-                hour_chunk_cough_count_avg = np.median(
+                hour_chunk_cough_count_avg = utils.mean_remove_outliers(
                     chunk_dates_per_hour["cough_count_per_hour"][hour])
 
                 if cough_count_avg >= 1:
@@ -411,7 +422,7 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
                     avg_change_cough_count_per_hour[hour] = hour_avg_change_cough_count
 
                 # Cough Activity
-                hour_chunk_cough_activity_avg = np.median(
+                hour_chunk_cough_activity_avg = utils.mean_remove_outliers(
                     chunk_dates_per_hour["cough_activity_per_hour"][hour])
 
                 if cough_activity_avg >= 1:
@@ -434,7 +445,17 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
             "avg_change_cough_count_per_hour": avg_change_cough_count_per_hour,
             "avg_change_cough_activity_per_hour": avg_change_cough_activity_per_hour,
             "avg_change_activity_per_hour": avg_change_activity_per_hour,
-            "usage_mask": usage_mask
+            "usage_mask": usage_mask,
+            "avg": {
+                "cough_count": utils.mean_remove_outliers(chunk_cough_count),
+                "cough_activity": utils.mean_remove_outliers(chunk_cough_activity),
+                "activity": utils.mean_remove_outliers(chunk_activity)
+            },
+            "base_lines": {
+                "cough_count": cough_count_avg,
+                "cough_activity": cough_activity_avg,
+                "activity": activity_avg
+            }
         }
 
         results.append(new_chunk)

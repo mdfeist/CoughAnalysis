@@ -32,10 +32,12 @@ def get_valid_events(df):
     ]
 
 
-def calculateMax(list):
-    size = len(list)
+def calculateMax(x):
+    if type(x) == list:
+        x = np.array(x)
+
+    size = x.shape[0]
     n = size // 2
-    x = np.array(list)
 
     x = np.sort(x)
 
@@ -53,6 +55,9 @@ def calculateMax(list):
 
 
 def calculateDistributionInfo(x):
+    if type(x) == list:
+        x = np.array(x)
+
     size = x.shape[0]
     n = size // 2
 
@@ -73,17 +78,13 @@ def calculateDistributionInfo(x):
 
 def mean_remove_outliers(x):
     if type(x) == list:
-        size = len(x)
-    else:
-        size = x.shape[0]
+        x = np.array(x)
+
+    size = x.shape[0]
 
     if size < 10:
         return np.mean(x)
 
-    x = np.sort(x)
-
-    s = size//4
-    e = 3*size//4
-    mean = np.mean(x[s:e])
-
-    return mean
+    _, lower, upper = calculateDistributionInfo(x)
+    x = x[(x > lower) & (x < upper)]
+    return np.mean(x)

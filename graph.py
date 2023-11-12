@@ -272,7 +272,47 @@ def changes_between_chunks(changes_between_chunks, file_name, title='Subject'):
     plt.close()
 
 
-def plot_clusters(cluster_infos, subject, file_name):
+def changes_between_chunks_avg(changes_between_chunks, file_name, title='Subject'):
+    FIG_SIZE = (10, 20)
+
+    fig, (ax1, ax2, ax3) = plt.subplots(
+        3, 1, figsize=FIG_SIZE, layout='constrained')
+
+    dates = []
+    cough_count_avg = []
+    cough_activity_avg = []
+    activity_avg = []
+
+    for chunk in changes_between_chunks:
+        dates.append(chunk["start"])
+        cough_count_avg.append(chunk["avg"]["cough_count"])
+        cough_activity_avg.append(chunk["avg"]["cough_activity"])
+        activity_avg.append(chunk["avg"]["activity"])
+
+    ax1.plot(dates, cough_count_avg, linewidth=2,
+             color='black', label='Average')
+    ax1.set_title(
+        f'{title} - Cough Count')
+    ax1.yaxis.grid(True)
+
+    ax2.plot(dates, cough_activity_avg, linewidth=2,
+             color='black', label='Average')
+    ax2.set_ylabel('Percentage')
+    ax2.set_title(
+        f'{title} - Cough Activity')
+    ax2.yaxis.grid(True)
+
+    ax3.plot(dates, activity_avg, linewidth=2, color='black', label='Average')
+    ax3.set_ylabel('Percentage')
+    ax3.set_title(
+        f'{title} - Activity')
+    ax3.yaxis.grid(True)
+
+    plt.savefig(file_name)
+    plt.close()
+
+
+def plot_usage_clusters(cluster_infos, subject, file_name):
     FIG_SIZE = (40, 20)
     n_clusters = len(cluster_infos)
 
@@ -363,6 +403,100 @@ def plot_clusters(cluster_infos, subject, file_name):
         ax.yaxis.grid(True)
     # plt.subplots_adjust(right=0.7)
     # plt.tight_layout(rect=[0, 0, 0.75, 1])
-    print("Saving " + file_name)
+    plt.savefig(file_name, bbox_inches="tight")
+    plt.close()
+
+
+def plot_cough_clusters(cluster_infos, subject, file_name):
+    FIG_SIZE = (40, 20)
+    n_clusters = len(cluster_infos)
+
+    # Plot clusters
+    fig = plt.figure(figsize=FIG_SIZE)
+    height_ratios = (1.0 - 1/(n_clusters+1),)
+    for i in range(n_clusters):
+        height_ratios += (1,)
+    gs = fig.add_gridspec(n_clusters+1, 2,  width_ratios=(30, 1), height_ratios=height_ratios,
+                          left=0.15, right=0.9, bottom=0.1, top=0.9,
+                          wspace=0.15, hspace=n_clusters*0.15)
+
+    ax1 = plt.subplot(gs[0, :1])
+
+    totalNumDays = (subject.get_last_day() - subject.get_first_day()).days
+    clusterLineData = np.zeros((1, totalNumDays))
+    clusterLineLabels = []
+
+    for days in range(totalNumDays):
+        date = subject.get_first_day() + datetime.timedelta(days=days)
+        clusterLineLabels.append(date)
+
+    numOfDays = 0
+    for cluster, cluster_info in enumerate(cluster_infos):
+        numOfDays += cluster_info.size()
+
+        for dayInfo in cluster_info.dates():
+            dayIndex = (dayInfo.date() - subject.get_first_day()).days
+            clusterLineData[0, dayIndex] = cluster + 1
+
+    colors = [(1, 1, 1), (0.71, 0.84, 0.77), (0.69, 0.55, 0.73),
+              (0.93, 0.66, 0.41), (0.40, 0.42, 0.78), (0.80, 0.42, 0.78)]
+    colors = colors[:(n_clusters+1)]
+    cmap = LinearSegmentedColormap.from_list(
+        "CustomPastel", colors, N=n_clusters+1)
+
+    values = np.unique(clusterLineData.ravel())
+    im = ax1.imshow(
+        clusterLineData, interpolation='none', cmap=cmap)
+    ax1.set_xticks(np.arange(len(clusterLineLabels)),
+                   labels=clusterLineLabels)
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax1.get_xticklabels(), rotation=90,
+             ha="right", rotation_mode="anchor")
+
+    # get the colors of the values, according to the
+    # colormap used by imshow
+    colors = [im.cmap(im.norm(value)) for value in values]
+    patches = []  # mpatches.Patch(color=colors[0], label="No Cough Data")
+    for i in range(n_clusters):
+        patches.append(mpatches.Patch(
+            color=colors[i+1], label=f"Cluster {i+1}"))
+    # put those patched as legend-handles into the legend
+    ax1.legend(handles=patches, facecolor='white',
+               bbox_to_anchor=(1.05, 1), borderaxespad=0)
+
+    hours = [i for i in range(24)]
+    lastCoughCountAx = None
+    lastCoughActivityAx = None
+    for cluster in range(n_clusters):
+        # Save time of day cough count box plot
+        if (lastCoughCountAx == None):
+            ax = plt.subplot(gs[cluster+1, 0])
+            lastCoughCountAx = ax
+        else:
+            ax = plt.subplot(gs[cluster+1, 0],
+                             sharey=lastCoughCountAx)
+
+        cough_count = np.zeros((24,))
+
+        for i, dayInfo in enumerate(cluster_infos[cluster].dates()):
+            for hour in range(24):
+                cough_count[hour] += dayInfo.coughCount()[hour]
+
+        ax.bar(hours, cough_count, label=hours)
+        ax.set_ylabel('Cough Count')
+        ax.tick_params(axis='x', labelrotation=45)
+        ax.set_title(
+            f'Cluster {cluster+1} - Cough Count Time of Day')
+        ax.yaxis.grid(True)
+        # Save cluster size
+        ax = plt.subplot(gs[cluster+1, 1])
+
+        ax.bar([f'Cluster {cluster+1}'],
+               [cluster_infos[cluster].size()])
+        ax.set_ylabel('Days')
+        ax.set_ylim([0, numOfDays])
+        ax.yaxis.grid(True)
+    # plt.subplots_adjust(right=0.7)
+    # plt.tight_layout(rect=[0, 0, 0.75, 1])
     plt.savefig(file_name, bbox_inches="tight")
     plt.close()

@@ -71,13 +71,13 @@ def main():
         #
         # If the maximum cough count for a day is 2. Then there were twice
         # as many coughs than normal during one of the hours in the day.
-        dates_changes = days.calculate_per_day_summary(dates, dates_per_hour)
+        # dates_changes = days.calculate_per_day_summary(dates, dates_per_hour)
 
-        graph.changes_over_time_day_info(
-            dates_changes,
-            f'{RESULTS_DIR}{subject.get_id()}_dates_changes.jpg',
-            title=subject.get_id()
-        )
+        # graph.changes_over_time_day_info(
+        #     dates_changes,
+        #     f'{RESULTS_DIR}{subject.get_id()}_dates_changes.jpg',
+        #     title=subject.get_id()
+        # )
 
         # Average usage
         estimated_usage = []
@@ -96,30 +96,40 @@ def main():
         try:
             clusters = cluster.create_clusters(dates, features, 3)
 
-            graph.plot_clusters(
+            graph.plot_usage_clusters(
                 clusters, subject, f'{RESULTS_DIR}{subject.get_id()}_usage_clusters.jpg')
         except Exception as e:
             print(e)
 
-        # Split dates into 14 day chunks
-        time_chunks = date_utils.chunk_dates(dates,
-                                             subject.get_first_day(),
-                                             subject.get_last_day(),
-                                             14)
+        chunks_sizes = [14, 30, 60]
 
-        for chunk in time_chunks:
-            print(f'{chunk["start"]} - {chunk["end"]} - {len(chunk["dates"])}')
+        for chunks_size in chunks_sizes:
+            # Split dates into 30 day chunks
+            time_chunks = date_utils.chunk_dates(dates,
+                                                 subject.get_first_day(),
+                                                 subject.get_last_day(),
+                                                 chunks_size)
 
-        changes_between_chunks = days.calculate_changes_between_chunks(
-            time_chunks,
-            dates_per_hour
-        )
+            for chunk in time_chunks:
+                print(
+                    f'{chunk["start"]} - {chunk["end"]} - {len(chunk["dates"])}')
 
-        graph.changes_between_chunks(
-            changes_between_chunks,
-            f'{RESULTS_DIR}{subject.get_id()}_dates_chunk_changes.jpg',
-            title=subject.get_id()
-        )
+            changes_between_chunks = days.calculate_changes_between_chunks(
+                time_chunks,
+                dates_per_hour
+            )
+
+            graph.changes_between_chunks_avg(
+                changes_between_chunks,
+                f'{RESULTS_DIR}{subject.get_id()}_dates_changes_{chunks_size}_days.jpg',
+                title=subject.get_id()
+            )
+
+            graph.changes_between_chunks(
+                changes_between_chunks,
+                f'{RESULTS_DIR}{subject.get_id()}_dates_chunk_changes_{chunks_size}_days.jpg',
+                title=subject.get_id()
+            )
 
 
 if __name__ == "__main__":
