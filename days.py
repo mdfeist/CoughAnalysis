@@ -202,11 +202,13 @@ def calculate_per_hour(dates, ignore_ends=False):
     return results
 
 
-def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
-    if dates_per_hour is None:
-        dates_per_hour = calculate_per_hour(dates)
-
+def calculate_per_day_summary(dates, first_day=None):
     num_days = len(dates)
+    if num_days <= 0:
+        return None
+
+    if first_day is None:
+        first_day = dates[0].date()
 
     cough_count_avg_per_day = np.zeros((num_days,))
     cough_count_max_per_day = np.zeros((num_days,))
@@ -221,10 +223,13 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
     activity_min_per_day = np.zeros((num_days,))
 
     date_labels = []
+    days_from_start = []
     for i in range(num_days):
         dayInfo = dates[i]
-
         date_labels.append(dayInfo.date())
+
+        # Calculate the difference between the current date and start date
+        days_from_start.append((dayInfo.date() - first_day).days)
 
         usage = dayInfo.estimated_usage()
 
@@ -233,19 +238,11 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
         day_cough_count_list = []
 
         for hour in range(24):
-            if usage[hour] and dates_per_hour["total_usage_per_hour"][hour] >= min_hours:
-                # Normalize hour
-                hour_cough_count = 0
-
-                if dates_per_hour["avg_cough_count_per_hour"][hour] > 0:
-                    hour_cough_count = day_cough_count[hour]
-                    hour_cough_count = hour_cough_count / \
-                        dates_per_hour["avg_cough_count_per_hour"][hour]
-
-                day_cough_count_list.append(hour_cough_count)
+            if usage[hour]:
+                day_cough_count_list.append(day_cough_count[hour])
 
         if len(day_cough_count_list):
-            cough_count_avg_per_day[i] = np.median(day_cough_count_list)
+            cough_count_avg_per_day[i] = np.mean(day_cough_count_list)
             cough_count_max_per_day[i] = np.max(day_cough_count_list)
             cough_count_min_per_day[i] = np.min(day_cough_count_list)
 
@@ -254,19 +251,11 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
         day_cough_activity_list = []
 
         for hour in range(24):
-            if usage[hour] and dates_per_hour["total_usage_per_hour"][hour] >= min_hours:
-                # Normalize hour
-                hour_cough_activity = 0
-
-                if dates_per_hour["avg_cough_activity_per_hour"][hour] > 0:
-                    hour_cough_activity = day_cough_activity[hour]
-                    hour_cough_activity = hour_cough_activity / \
-                        dates_per_hour["avg_cough_activity_per_hour"][hour]
-
-                day_cough_activity_list.append(hour_cough_activity)
+            if usage[hour]:
+                day_cough_activity_list.append(day_cough_activity[hour])
 
         if len(day_cough_activity_list):
-            cough_activity_avg_per_day[i] = np.median(day_cough_activity_list)
+            cough_activity_avg_per_day[i] = np.mean(day_cough_activity_list)
             cough_activity_max_per_day[i] = np.max(day_cough_activity_list)
             cough_activity_min_per_day[i] = np.min(day_cough_activity_list)
 
@@ -275,25 +264,17 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
         day_activity_list = []
 
         for hour in range(24):
-            if usage[hour] and dates_per_hour["total_usage_per_hour"][hour] >= min_hours:
-                # Normalize hour
-                hour_activity = 0
-
-                if dates_per_hour["avg_activity_per_hour"][hour] > 0:
-                    hour_activity = day_activity[hour]
-                    hour_activity = hour_activity / \
-                        dates_per_hour["avg_activity_per_hour"][hour]
-
-                day_activity_list.append(hour_activity)
+            if usage[hour]:
+                day_activity_list.append(day_activity[hour])
 
         if len(day_activity_list):
-            activity_avg_per_day[i] = np.median(day_activity_list)
+            activity_avg_per_day[i] = np.mean(day_activity_list)
             activity_max_per_day[i] = np.max(day_activity_list)
             activity_min_per_day[i] = np.min(day_activity_list)
 
-    results = {
+    results = pd.DataFrame(data={
         "dates": date_labels,
-        "size": num_days,
+        "days_from_start": days_from_start,
         "cough_count_avg_per_day": cough_count_avg_per_day,
         "cough_count_max_per_day": cough_count_max_per_day,
         "cough_count_min_per_day": cough_count_min_per_day,
@@ -303,7 +284,7 @@ def calculate_per_day_summary(dates, dates_per_hour=None, min_hours=5):
         "activity_avg_per_day": activity_avg_per_day,
         "activity_max_per_day": activity_max_per_day,
         "activity_min_per_day": activity_min_per_day
-    }
+    })
 
     return results
 

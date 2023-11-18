@@ -20,3 +20,7 @@ You can run `python clean_data.py` but isn't needed if you already have `cleande
 ## Results
 
 All the results for each of these algorithms should be in the `results` directory.
+
+## Alberta Air Quality Data
+
+https://airdata.alberta.ca/reporting/Download/MultipleParameters

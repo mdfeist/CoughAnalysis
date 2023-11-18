@@ -1,6 +1,8 @@
 from os import makedirs
 
 import numpy as np
+import scipy.stats
+import pandas as pd
 
 from tqdm import tqdm
 
@@ -23,6 +25,24 @@ def main():
     # Load CSV and split data based on subject ID
     subjects = load_from_csv(CSV_PATH)
 
+    correlations_with_time = {
+        "Patient": [],
+        "Cough Count Correlation": [],
+        "Cough Count P-Value": [],
+        "Cough Activity Correlation": [],
+        "Cough Activity P-Value": [],
+        "Activity Correlation": [],
+        "Activity P-Value": [],
+    }
+
+    correlations = {
+        "Patient": [],
+        "Cough Count with Cough Activity": [],
+        "Cough Count with Cough Activity P-Value": [],
+        "Cough Count with Activity": [],
+        "Cough Count with Activity P-Value": [],
+    }
+
     # Subject stats
     print("Caculating Stats for Subjects...")
     for subject_id in tqdm(sorted(subjects.keys())):
@@ -33,6 +53,9 @@ def main():
         # Formatting dates for subject into days
         # Returns a list of DayInfo objects
         dates = days.create_days(subject)
+
+        if len(dates) <= 0:
+            continue
 
         # Get summary of each day in a table
         # Includes date, start time, hours used,
@@ -52,11 +75,11 @@ def main():
             title=subject.get_id()
         )
 
-        graph.estimate_box_plot_day_info(
-            dates_per_hour,
-            f'{RESULTS_DIR}{subject.get_id()}_dates_estimated_box.jpg',
-            title=subject.get_id()
-        )
+        # graph.estimate_box_plot_day_info(
+        #     dates_per_hour,
+        #     f'{RESULTS_DIR}{subject.get_id()}_dates_estimated_box.jpg',
+        #     title=subject.get_id()
+        # )
 
         # Each hour is first is normalized by the average for that hour.
         # This gives us a percentage for each hour in each day that the
@@ -71,13 +94,59 @@ def main():
         #
         # If the maximum cough count for a day is 2. Then there were twice
         # as many coughs than normal during one of the hours in the day.
-        # dates_changes = days.calculate_per_day_summary(dates, dates_per_hour)
+        dates_summary = days.calculate_per_day_summary(
+            dates, subject.get_first_day())
 
-        # graph.changes_over_time_day_info(
-        #     dates_changes,
-        #     f'{RESULTS_DIR}{subject.get_id()}_dates_changes.jpg',
-        #     title=subject.get_id()
-        # )
+        if dates_summary is not None:
+            graph.graph_day_summary(
+                dates_summary,
+                f'{RESULTS_DIR}{subject.get_id()}_dates_plot.jpg',
+                title=subject.get_id()
+            )
+
+        day_v_cough_count_corr = scipy.stats.spearmanr(
+            dates_summary["days_from_start"],
+            dates_summary["cough_count_avg_per_day"])
+
+        day_v_cough_activity_corr = scipy.stats.spearmanr(
+            dates_summary["days_from_start"],
+            dates_summary["cough_activity_avg_per_day"])
+
+        day_v_activity_corr = scipy.stats.spearmanr(
+            dates_summary["days_from_start"],
+            dates_summary["activity_avg_per_day"])
+
+        correlations_with_time["Patient"].append(subject_id)
+        correlations_with_time["Cough Count Correlation"].append(
+            day_v_cough_count_corr[0])
+        correlations_with_time["Cough Count P-Value"].append(
+            day_v_cough_count_corr[1])
+        correlations_with_time["Cough Activity Correlation"].append(
+            day_v_cough_activity_corr[0])
+        correlations_with_time["Cough Activity P-Value"].append(
+            day_v_cough_activity_corr[1])
+        correlations_with_time["Activity Correlation"].append(
+            day_v_activity_corr[0])
+        correlations_with_time["Activity P-Value"].append(
+            day_v_activity_corr[1])
+
+        cough_count_v_cough_activity_corr = scipy.stats.spearmanr(
+            dates_summary["cough_count_avg_per_day"],
+            dates_summary["cough_count_avg_per_day"])
+
+        cough_count_v_activity_corr = scipy.stats.spearmanr(
+            dates_summary["cough_count_avg_per_day"],
+            dates_summary["activity_avg_per_day"])
+
+        correlations["Patient"].append(subject_id)
+        correlations["Cough Count with Cough Activity"].append(
+            cough_count_v_cough_activity_corr[0])
+        correlations["Cough Count with Cough Activity P-Value"].append(
+            cough_count_v_cough_activity_corr[1])
+        correlations["Cough Count with Activity"].append(
+            cough_count_v_activity_corr[0])
+        correlations["Cough Count with Activity P-Value"].append(
+            cough_count_v_activity_corr[1])
 
         # Average usage
         estimated_usage = []
@@ -130,6 +199,15 @@ def main():
                 f'{RESULTS_DIR}{subject.get_id()}_dates_chunk_changes_{chunks_size}_days.jpg',
                 title=subject.get_id()
             )
+
+    # Save Correlation
+    correlations = pd.DataFrame(data=correlations)
+    correlations.to_csv(
+        f'{RESULTS_DIR}correlations.csv')
+
+    correlations_with_time = pd.DataFrame(data=correlations_with_time)
+    correlations_with_time.to_csv(
+        f'{RESULTS_DIR}time_correlations.csv')
 
 
 if __name__ == "__main__":

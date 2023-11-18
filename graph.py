@@ -144,47 +144,32 @@ def estimate_box_plot_day_info(dates_info, file_name, title='Subject'):
     plt.close()
 
 
-def changes_over_time_day_info(dates_changes, file_name, title='Subject'):
+def graph_day_summary(dates_summary, file_name, title='Subject'):
     FIG_SIZE = (10, 20)
 
     fig, (ax1, ax2, ax3) = plt.subplots(
         3, 1, figsize=FIG_SIZE, layout='constrained')
 
-    ax1.plot(dates_changes["dates"],
-             dates_changes["cough_count_avg_per_day"], linewidth=2, color='black', label='Average')
-    ax1.plot(dates_changes["dates"],
-             dates_changes["cough_count_max_per_day"], alpha=0.5, color='red', label='Maximum')
-    ax1.plot(dates_changes["dates"],
-             dates_changes["cough_count_min_per_day"], alpha=0.5, color='blue', label='Minimum')
-    ax1.set_ylabel('Percentage')
+    sns.regplot(ax=ax1, data=dates_summary, x="days_from_start",
+                y="cough_count_avg_per_day", robust=True)
+    ax1.set_xlabel('Days')
+    ax1.set_ylabel('Cough Count')
     ax1.set_title(
         f'{title} - Cough Count')
-    ax1.legend()
-    ax1.yaxis.grid(True)
 
-    ax2.plot(dates_changes["dates"],
-             dates_changes["cough_activity_avg_per_day"], linewidth=2, color='black', label='Average')
-    ax2.plot(dates_changes["dates"],
-             dates_changes["cough_activity_max_per_day"], alpha=0.5, color='red', label='Maximum')
-    ax2.plot(dates_changes["dates"],
-             dates_changes["cough_activity_min_per_day"], alpha=0.5, color='blue', label='Minimum')
-    ax2.set_ylabel('Percentage')
+    sns.regplot(ax=ax2, data=dates_summary, x="days_from_start",
+                y="cough_activity_avg_per_day", robust=True)
+    ax2.set_xlabel('Days')
+    ax2.set_ylabel('Cough Activity')
     ax2.set_title(
         f'{title} - Cough Activity')
-    ax2.legend()
-    ax2.yaxis.grid(True)
 
-    ax3.plot(dates_changes["dates"],
-             dates_changes["activity_avg_per_day"], linewidth=2, color='black', label='Average')
-    ax3.plot(dates_changes["dates"],
-             dates_changes["activity_max_per_day"], alpha=0.5, color='red', label='Maximum')
-    ax3.plot(dates_changes["dates"],
-             dates_changes["activity_min_per_day"], alpha=0.5, color='blue', label='Minimum')
-    ax3.set_ylabel('Percentage')
+    sns.regplot(ax=ax3, data=dates_summary, x="days_from_start",
+                y="activity_avg_per_day", robust=True)
+    ax3.set_xlabel('Days')
+    ax3.set_ylabel('Activity')
     ax3.set_title(
         f'{title} - Activity')
-    ax3.legend()
-    ax3.yaxis.grid(True)
 
     plt.savefig(file_name)
     plt.close()
