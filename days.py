@@ -131,36 +131,6 @@ def dates_to_table(dates):
 
 
 def calculate_per_hour(dates, ignore_ends=False):
-    # Calculate the totals
-    total_cough_count_per_hour = np.zeros((24,))
-    total_cough_activity_per_hour = np.zeros((24,))
-    total_activity_per_hour = np.zeros((24,))
-    total_usage_per_hour = np.zeros((24,))
-
-    for dayInfo in dates:
-        for hour in range(24):
-            total_cough_count_per_hour[hour] += dayInfo.coughCount()[hour]
-            total_cough_activity_per_hour[hour] += dayInfo.coughActivity()[
-                hour]
-            total_activity_per_hour[hour] += dayInfo.activity()[hour]
-            total_usage_per_hour[hour] += dayInfo.estimated_usage(
-                remove_ends=ignore_ends)[hour]
-
-    # Normalize with usage
-    # Find averages to fill in missing data
-    avg_cough_count_per_hour = np.zeros((24,))
-    avg_cough_activity_per_hour = np.zeros((24,))
-    avg_activity_per_hour = np.zeros((24,))
-
-    for hour in range(24):
-        if total_usage_per_hour[hour] >= 2:
-            avg_cough_count_per_hour[hour] = total_cough_count_per_hour[hour] / \
-                total_usage_per_hour[hour]
-            avg_cough_activity_per_hour[hour] = total_cough_activity_per_hour[hour] / \
-                total_usage_per_hour[hour]
-            avg_activity_per_hour[hour] = total_activity_per_hour[hour] / \
-                total_usage_per_hour[hour]
-
     # Create distributions
     num_dates = len(dates)
     date_labels = []
@@ -168,6 +138,7 @@ def calculate_per_hour(dates, ignore_ends=False):
     cough_count_per_hour = [[] for _ in range(24)]
     cough_activity_per_hour = [[] for _ in range(24)]
     activity_per_hour = [[] for _ in range(24)]
+    total_usage_per_hour = np.zeros((24,))
 
     for i in range(num_dates):
         dayInfo = dates[i]
@@ -182,6 +153,39 @@ def calculate_per_hour(dates, ignore_ends=False):
                 cough_activity_per_hour[hour].append(dayInfo.coughActivity()[
                     hour])
                 activity_per_hour[hour].append(dayInfo.activity()[hour])
+                total_usage_per_hour[hour] += 1
+
+    # Sum
+    total_cough_count_per_hour = np.array([
+        np.sum(sublist) for sublist in cough_count_per_hour])
+    total_cough_activity_per_hour = np.array([
+        np.sum(sublist) for sublist in cough_activity_per_hour])
+    total_activity_per_hour = np.array([
+        np.sum(sublist) for sublist in activity_per_hour])
+
+    # Mean
+    avg_cough_count_per_hour = np.array([np.mean(sublist)
+                                         for sublist in cough_count_per_hour])
+    avg_cough_activity_per_hour = np.array([np.mean(sublist)
+                                            for sublist in cough_activity_per_hour])
+    avg_activity_per_hour = np.array([np.mean(sublist)
+                                      for sublist in activity_per_hour])
+
+    # Median
+    median_cough_count_per_hour = np.array([np.median(sublist)
+                                            for sublist in cough_count_per_hour])
+    median_cough_activity_per_hour = np.array([np.median(sublist)
+                                               for sublist in cough_activity_per_hour])
+    median_activity_per_hour = np.array([np.median(sublist)
+                                         for sublist in activity_per_hour])
+
+    # STD
+    std_cough_count_per_hour = np.array([np.std(sublist)
+                                         for sublist in cough_count_per_hour])
+    std_cough_activity_per_hour = np.array([np.std(sublist)
+                                            for sublist in cough_activity_per_hour])
+    std_activity_per_hour = np.array([np.std(sublist)
+                                      for sublist in activity_per_hour])
 
     results = {
         "dates": date_labels,
@@ -194,6 +198,12 @@ def calculate_per_hour(dates, ignore_ends=False):
         "avg_cough_count_per_hour": avg_cough_count_per_hour,
         "avg_cough_activity_per_hour": avg_cough_activity_per_hour,
         "avg_activity_per_hour": avg_activity_per_hour,
+        "median_cough_count_per_hour": median_cough_count_per_hour,
+        "median_cough_activity_per_hour": median_cough_activity_per_hour,
+        "median_activity_per_hour": median_activity_per_hour,
+        "std_cough_count_per_hour": std_cough_count_per_hour,
+        "std_cough_activity_per_hour": std_cough_activity_per_hour,
+        "std_activity_per_hour": std_activity_per_hour,
         "cough_count_per_hour": cough_count_per_hour,
         "cough_activity_per_hour": cough_activity_per_hour,
         "activity_per_hour": activity_per_hour,
@@ -359,7 +369,7 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
     cough_activity_avg = utils.mean_remove_outliers(cough_activity)
     activity_avg = utils.mean_remove_outliers(activity)
 
-    for chunk in date_chunks:
+    for idx, chunk in enumerate(date_chunks):
         chunk_dates_per_hour = calculate_per_hour(chunk["dates"])
 
         avg_change_cough_count_per_hour = np.zeros((24,))
@@ -419,6 +429,7 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
                     avg_change_activity_per_hour[hour] = hour_avg_change_activity
 
         new_chunk = {
+            "idx": idx,
             "start": chunk["start"],
             "end": chunk["end"],
             "dates": chunk["dates"],
@@ -432,6 +443,11 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
                 "cough_activity": utils.mean_remove_outliers(chunk_cough_activity),
                 "activity": utils.mean_remove_outliers(chunk_activity)
             },
+            "std": {
+                "cough_count": np.std(chunk_cough_count),
+                "cough_activity": np.std(chunk_cough_activity),
+                "activity": np.std(chunk_activity)
+            },
             "base_lines": {
                 "cough_count": cough_count_avg,
                 "cough_activity": cough_activity_avg,
@@ -442,3 +458,30 @@ def calculate_changes_between_chunks(date_chunks, dates_per_hour):
         results.append(new_chunk)
 
     return results
+
+
+def changes_between_chunks_to_table(changes_between_chunks):
+    data = {
+        "idx": [],
+        "start": [],
+        "end": [],
+        "avg_cough_count": [],
+        "avg_cough_activity": [],
+        "avg_activity": [],
+        "std_cough_count": [],
+        "std_cough_activity": [],
+        "std_activity": [],
+    }
+
+    for chunk in changes_between_chunks:
+        data["idx"].append(chunk["idx"])
+        data["start"].append(chunk["start"])
+        data["end"].append(chunk["end"])
+        data["avg_cough_count"].append(chunk["avg"]["cough_count"])
+        data["avg_cough_activity"].append(chunk["avg"]["cough_activity"])
+        data["avg_activity"].append(chunk["avg"]["activity"])
+        data["std_cough_count"].append(chunk["std"]["cough_count"])
+        data["std_cough_activity"].append(chunk["std"]["cough_activity"])
+        data["std_activity"].append(chunk["std"]["activity"])
+
+    return pd.DataFrame(data=data)

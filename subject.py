@@ -62,11 +62,6 @@ class Subject:
     def get_id(self):
         return self._id
 
-    def _time_to_string():
-        h = int(x // 60)
-        m = int(x % 60)
-        return f'{h}:{m:02d}'
-
     def add_activity(self, start_time, event_id, event_type, row):
         device_id = row['device_id']
 

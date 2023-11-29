@@ -46,3 +46,18 @@ def chunk_dates(dates, start, end, days_per_group=14):
         current_chunk["dates"].append(dayInfo)
 
     return time_chunks
+
+
+def get_date_with_offset(date, offset):
+    return date + datetime.timedelta(offset)
+
+
+def dates_with_range(dates, start, end):
+    in_range = []
+
+    for day_info in dates:
+        date = day_info.date()
+        if date >= start and date <= end:
+            in_range.append(day_info)
+
+    return in_range

@@ -54,7 +54,7 @@ def calculateMax(x):
     return np.max(x)
 
 
-def calculateDistributionInfo(x):
+def calculateDistributionInfo(x, iqr_size=1.5):
     if type(x) == list:
         x = np.array(x)
 
@@ -70,13 +70,13 @@ def calculateDistributionInfo(x):
 
     IQR = Q3 - Q1
 
-    lower = Q1 - 1.5*IQR
-    upper = Q3 + 1.5*IQR
+    lower = Q1 - iqr_size*IQR
+    upper = Q3 + iqr_size*IQR
 
     return median, lower, upper
 
 
-def mean_remove_outliers(x):
+def mean_remove_outliers(x, iqr_size=1.5):
     if type(x) == list:
         x = np.array(x)
 
@@ -85,6 +85,15 @@ def mean_remove_outliers(x):
     if size < 10:
         return np.mean(x)
 
-    _, lower, upper = calculateDistributionInfo(x)
+    _, lower, upper = calculateDistributionInfo(x, iqr_size)
     x = x[(x > lower) & (x < upper)]
     return np.mean(x)
+
+
+def number_of_outliers(x, lower, upper):
+    if type(x) == list:
+        x = np.array(x)
+
+    n_l = len(x[(x < lower)])
+    n_u = len(x[(x > upper)])
+    return n_l, n_u

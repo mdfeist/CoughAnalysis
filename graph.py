@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib import cm
 import datetime
 import pandas as pd
 import seaborn as sns
@@ -175,12 +176,123 @@ def graph_day_summary(dates_summary, file_name, title='Subject'):
     plt.close()
 
 
-def changes_between_chunks(changes_between_chunks, file_name, title='Subject'):
+def graph_reg_group_summary(dates_summary, group_size, file_name, title='Subject'):
+    FIG_SIZE = (10, 20)
+
+    fig, ax = plt.subplots(
+        3, 2, figsize=FIG_SIZE, layout='constrained')
+
+    sns.regplot(ax=ax[0, 0], data=dates_summary, x="idx",
+                y="avg_cough_count")
+    ax[0, 0].set_xlabel(f'{group_size} Days')
+    ax[0, 0].set_ylabel('Average Cough Count')
+    ax[0, 0].set_title(
+        f'{title} - Average Cough Count')
+
+    sns.regplot(ax=ax[1, 0], data=dates_summary, x="idx",
+                y="avg_cough_activity")
+    ax[1, 0].set_xlabel(f'{group_size} Days')
+    ax[1, 0].set_ylabel('Average Cough Activity')
+    ax[1, 0].set_title(
+        f'{title} - Average Cough Activity')
+
+    sns.regplot(ax=ax[2, 0], data=dates_summary, x="idx",
+                y="avg_activity")
+    ax[2, 0].set_xlabel(f'{group_size} Days')
+    ax[2, 0].set_ylabel('Average Activity')
+    ax[2, 0].set_title(
+        f'{title} - Average Activity')
+
+    sns.regplot(ax=ax[0, 1], data=dates_summary, x="idx",
+                y="std_cough_count")
+    ax[0, 1].set_xlabel(f'{group_size} Days')
+    ax[0, 1].set_ylabel('STD Cough Count')
+    ax[0, 1].set_title(
+        f'{title} - STD Cough Count')
+
+    sns.regplot(ax=ax[1, 1], data=dates_summary, x="idx",
+                y="std_cough_activity")
+    ax[1, 1].set_xlabel(f'{group_size} Days')
+    ax[1, 1].set_ylabel('STD Cough Activity')
+    ax[1, 1].set_title(
+        f'{title} - STD Cough Activity')
+
+    sns.regplot(ax=ax[2, 1], data=dates_summary, x="idx",
+                y="std_activity")
+    ax[2, 1].set_xlabel(f'{group_size} Days')
+    ax[2, 1].set_ylabel('STD Activity')
+    ax[2, 1].set_title(
+        f'{title} - STD Activity')
+
+    plt.savefig(file_name)
+    plt.close()
+
+
+def graph_reg(dates_summary, x, y, x_label, y_label, file_name, title='Subject'):
+    FIG_SIZE = (10, 10)
+
+    fig = plt.figure(figsize=FIG_SIZE, layout='constrained')
+
+    sns.regplot(data=dates_summary, x=x,
+                y=y, robust=True)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+
+    plt.savefig(file_name)
+    plt.close()
+
+
+def graph_reg_joint(dates_summary, x, y, x_label, y_label, file_name):
+    FIG_SIZE = (10, 10)
+
+    fig = plt.figure(figsize=FIG_SIZE, layout='constrained')
+
+    sns.jointplot(x=x, y=y, data=dates_summary,
+                  kind="reg", truncate=False)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+
+    plt.savefig(file_name)
+    plt.close()
+
+
+def scatter(dates_summary, x, y, x_label, y_label, file_name, labels=None, title='Subject'):
+    FIG_SIZE = (10, 10)
+
+    fig = plt.figure(figsize=FIG_SIZE, layout='constrained')
+
+    if labels is None:
+        plt.scatter(dates_summary[x].to_numpy(), dates_summary[y].to_numpy())
+    else:
+        unique_labels = dates_summary[labels].unique()
+        cmap = cm.get_cmap('viridis', len(unique_labels))
+
+        for c, label in enumerate(unique_labels):
+            df = dates_summary[dates_summary[labels] == label]
+            plt.scatter(df[x].to_numpy(),
+                        df[y].to_numpy(),
+                        c=cmap.colors[c],
+                        label=label)
+
+    sns.regplot(data=dates_summary, x=x,
+                y=y, scatter=False, robust=True)
+
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.legend()
+
+    plt.savefig(file_name)
+    plt.close()
+
+
+def changes_between_groups_heatmap(changes_between_groups, file_name, title='Subject'):
     FIG_SIZE = (20, 20)
     fig, (ax1, ax2, ax3) = plt.subplots(
         3, 1, figsize=FIG_SIZE, sharex=True, sharey=False)
 
-    num_chunks = len(changes_between_chunks)
+    num_chunks = len(changes_between_groups)
 
     cough_count_data = np.zeros((num_chunks, 24))
     cough_activity_data = np.zeros((num_chunks, 24))
@@ -190,7 +302,7 @@ def changes_between_chunks(changes_between_chunks, file_name, title='Subject'):
     row_labels = []
     col_labels = list(range(0, 24))
 
-    for i, chunk in enumerate(changes_between_chunks):
+    for i, chunk in enumerate(changes_between_groups):
         chunk_cough_count = chunk["avg_change_cough_count_per_hour"]
         chunk_activity_count = chunk["avg_change_cough_activity_per_hour"]
         chunk_activity = chunk["avg_change_activity_per_hour"]
